@@ -29,8 +29,6 @@ const (
 	minSleep        = 10 * time.Millisecond
 	maxSleep        = 5 * time.Minute
 	decayConstant   = 1 // bigger for slower decay, exponential
-	maxParts        = 10000
-	maxVersions     = 100 // maximum number of versions we search in --b2-versions mode
 )
 
 // Register with Fs
@@ -50,24 +48,24 @@ func init() {
 	})
 }
 
-// Fs represents a remote b2 server
+// Fs represents a remote server
 type Fs struct {
 	name     string             // name of this remote
 	root     string             // the path we are working on
 	features *fs.Features       // optional features
 	username string             // account name
 	password string             // auth key0
-	srv      *rest.Client       // the connection to the b2 server
+	srv      *rest.Client       // the connection to the server
 	pacer    *pacer.Pacer       // To pace and retry the API calls
 	session  UserSessionInfo    // contains the session data
 	dirCache *dircache.DirCache // Map of directory path to directory id
 }
 
-// Object describes a b2 object
+// Object describes an object
 type Object struct {
 	fs      *Fs       // what this object is part of
 	remote  string    // The remote path
-	id      string    // b2 id of the file
+	id      string    // ID of the file
 	modTime time.Time // The modified time of the object if known
 	md5     string    // MD5 hash if known
 	size    int64     // Size of the object
