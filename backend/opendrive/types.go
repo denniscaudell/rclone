@@ -2,7 +2,21 @@ package opendrive
 
 import (
 	"encoding/json"
+	"fmt"
 )
+
+// Error describes an openDRIVE error response
+type Error struct {
+	Info struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+// Error statisfies the error interface
+func (e *Error) Error() string {
+	return fmt.Sprintf("%s (Error %d)", e.Info.Message, e.Info.Code)
+}
 
 // Account describes a OpenDRIVE account
 type Account struct {

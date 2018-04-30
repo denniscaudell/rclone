@@ -115,7 +115,6 @@ func (f *Fs) Hashes() hash.Set {
 // NewFs contstructs an Fs from the path, bucket:path
 func NewFs(name, root string) (fs.Fs, error) {
 	root = parsePath(root)
-	fs.Debugf(nil, "NewFS(\"%s\", \"%s\"", name, root)
 	username := fs.ConfigFileGet(name, "username")
 	if username == "" {
 		return nil, errors.New("username not found")
@@ -127,9 +126,6 @@ func NewFs(name, root string) (fs.Fs, error) {
 	if password == "" {
 		return nil, errors.New("password not found")
 	}
-
-	fs.Debugf(nil, "OpenDrive-user: %s", username)
-	fs.Debugf(nil, "OpenDrive-pass: %s", password)
 
 	f := &Fs{
 		name:     name,
@@ -203,23 +199,18 @@ func (f *Fs) rootSlash() string {
 
 // errorHandler parses a non 2xx error response into an error
 func errorHandler(resp *http.Response) error {
-	// Decode error response
-	// errResponse := new(api.Error)
-	// err := rest.DecodeJSON(resp, &errResponse)
-	// if err != nil {
-	// 	fs.Debugf(nil, "Couldn't decode error response: %v", err)
-	// }
-	// if errResponse.Code == "" {
-	// 	errResponse.Code = "unknown"
-	// }
-	// if errResponse.Status == 0 {
-	// 	errResponse.Status = resp.StatusCode
-	// }
-	// if errResponse.Message == "" {
-	// 	errResponse.Message = "Unknown " + resp.Status
-	// }
-	// return errResponse
-	return nil
+	errResponse := new(Error)
+	err := rest.DecodeJSON(resp, &errResponse)
+	if err != nil {
+		fs.Debugf(nil, "Couldn't decode error response: %v", err)
+	}
+	if errResponse.Info.Code == 0 {
+		errResponse.Info.Code = resp.StatusCode
+	}
+	if errResponse.Info.Message == "" {
+		errResponse.Info.Message = "Unknown " + resp.Status
+	}
+	return errResponse
 }
 
 // Mkdir creates the folder if it doesn't exist
