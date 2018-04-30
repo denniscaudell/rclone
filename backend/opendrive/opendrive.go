@@ -211,7 +211,7 @@ func errorHandler(resp *http.Response) error {
 
 // Mkdir creates the folder if it doesn't exist
 func (f *Fs) Mkdir(dir string) error {
-	fs.Debugf(nil, "Mkdir(\"%s\")", dir)
+	// fs.Debugf(nil, "Mkdir(\"%s\")", dir)
 	err := f.dirCache.FindRoot(true)
 	if err != nil {
 		return err
@@ -274,7 +274,7 @@ func (f *Fs) purgeCheck(dir string, check bool) error {
 //
 // Returns an error if it isn't empty
 func (f *Fs) Rmdir(dir string) error {
-	fs.Debugf(nil, "Rmdir(\"%s\")", path.Join(f.root, dir))
+	// fs.Debugf(nil, "Rmdir(\"%s\")", path.Join(f.root, dir))
 	return f.purgeCheck(dir, true)
 }
 
@@ -293,7 +293,7 @@ func (f *Fs) Precision() time.Duration {
 //
 // If it isn't possible then return fs.ErrorCantCopy
 func (f *Fs) Copy(src fs.Object, remote string) (fs.Object, error) {
-	fs.Debugf(nil, "Copy(%v)", remote)
+	// fs.Debugf(nil, "Copy(%v)", remote)
 	srcObj, ok := src.(*Object)
 	if !ok {
 		fs.Debugf(src, "Can't copy - not same remote type")
@@ -315,7 +315,7 @@ func (f *Fs) Copy(src fs.Object, remote string) (fs.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	fs.Debugf(nil, "...%#v\n...%#v", remote, directoryID)
+	// fs.Debugf(nil, "...%#v\n...%#v", remote, directoryID)
 
 	// Copy the object
 	var resp *http.Response
@@ -357,7 +357,7 @@ func (f *Fs) Copy(src fs.Object, remote string) (fs.Object, error) {
 //
 // If it isn't possible then return fs.ErrorCantMove
 func (f *Fs) Move(src fs.Object, remote string) (fs.Object, error) {
-	fs.Debugf(nil, "Move(%v)", remote)
+	// fs.Debugf(nil, "Move(%v)", remote)
 	srcObj, ok := src.(*Object)
 	if !ok {
 		fs.Debugf(src, "Can't move - not same remote type")
@@ -413,7 +413,7 @@ func (f *Fs) Move(src fs.Object, remote string) (fs.Object, error) {
 //
 // If destination exists then return fs.ErrorDirExists
 func (f *Fs) DirMove(src fs.Fs, srcRemote, dstRemote string) (err error) {
-	fs.Debugf(nil, "DirMove(%v)", src.Root())
+	// fs.Debugf(nil, "DirMove(%v)", src.Root())
 	srcFs, ok := src.(*Fs)
 	if !ok {
 		fs.Debugf(src, "DirMove error: not same remote type")
@@ -500,7 +500,7 @@ func (f *Fs) Purge() error {
 //
 // If it can't be found it returns the error fs.ErrorObjectNotFound.
 func (f *Fs) newObjectWithInfo(remote string, file *File) (fs.Object, error) {
-	fs.Debugf(nil, "newObjectWithInfo(%s, %v)", remote, file)
+	// fs.Debugf(nil, "newObjectWithInfo(%s, %v)", remote, file)
 
 	var o *Object
 	if nil != file {
@@ -529,7 +529,7 @@ func (f *Fs) newObjectWithInfo(remote string, file *File) (fs.Object, error) {
 // NewObject finds the Object at remote.  If it can't be found
 // it returns the error fs.ErrorObjectNotFound.
 func (f *Fs) NewObject(remote string) (fs.Object, error) {
-	fs.Debugf(nil, "NewObject(\"%s\")", remote)
+	// fs.Debugf(nil, "NewObject(\"%s\")", remote)
 	return f.newObjectWithInfo(remote, nil)
 }
 
@@ -545,7 +545,7 @@ func (f *Fs) createObject(remote string, modTime time.Time, size int64) (o *Obje
 	if err != nil {
 		return nil, leaf, directoryID, err
 	}
-	fs.Debugf(nil, "\n...leaf %#v\n...id %#v", leaf, directoryID)
+	// fs.Debugf(nil, "\n...leaf %#v\n...id %#v", leaf, directoryID)
 	// Temporary Object under construction
 	o = &Object{
 		fs:     f,
@@ -584,7 +584,7 @@ func (f *Fs) Put(in io.Reader, src fs.ObjectInfo, options ...fs.OpenOption) (fs.
 	size := src.Size()
 	modTime := src.ModTime()
 
-	fs.Debugf(nil, "Put(%s)", remote)
+	// fs.Debugf(nil, "Put(%s)", remote)
 
 	o, leaf, directoryID, err := f.createObject(remote, modTime, size)
 	if err != nil {
@@ -625,6 +625,7 @@ var retryErrorCodes = []int{
 	400, // Bad request (seen in "Next token is expired")
 	401, // Unauthorized (seen in "Token has expired")
 	408, // Request Timeout
+	423, // Locked - get this on folders sometimes
 	429, // Rate exceeded.
 	500, // Get occasional 500 Internal Server Error
 	502, // Bad Gateway when doing big listings
@@ -642,7 +643,7 @@ func (f *Fs) shouldRetry(resp *http.Response, err error) (bool, error) {
 
 // CreateDir makes a directory with pathID as parent and name leaf
 func (f *Fs) CreateDir(pathID, leaf string) (newID string, err error) {
-	fs.Debugf(f, "CreateDir(%q, %q)\n", pathID, replaceReservedChars(leaf))
+	// fs.Debugf(f, "CreateDir(%q, %q)\n", pathID, replaceReservedChars(leaf))
 	var resp *http.Response
 	response := createFolderResponse{}
 	err = f.pacer.Call(func() (bool, error) {
@@ -671,10 +672,10 @@ func (f *Fs) CreateDir(pathID, leaf string) (newID string, err error) {
 
 // FindLeaf finds a directory of name leaf in the folder with ID pathID
 func (f *Fs) FindLeaf(pathID, leaf string) (pathIDOut string, found bool, err error) {
-	fs.Debugf(nil, "FindLeaf(\"%s\", \"%s\")", pathID, leaf)
+	// fs.Debugf(nil, "FindLeaf(\"%s\", \"%s\")", pathID, leaf)
 
 	if pathID == "0" && leaf == "" {
-		fs.Debugf(nil, "Found OpenDrive root")
+		// fs.Debugf(nil, "Found OpenDrive root")
 		// that's the root directory
 		return pathID, true, nil
 	}
@@ -696,7 +697,7 @@ func (f *Fs) FindLeaf(pathID, leaf string) (pathIDOut string, found bool, err er
 
 	for _, folder := range folderList.Folders {
 		folder.Name = restoreReservedChars(folder.Name)
-		fs.Debugf(nil, "Folder: %s (%s)", folder.Name, folder.FolderID)
+		// fs.Debugf(nil, "Folder: %s (%s)", folder.Name, folder.FolderID)
 
 		if leaf == folder.Name {
 			// found
@@ -717,7 +718,7 @@ func (f *Fs) FindLeaf(pathID, leaf string) (pathIDOut string, found bool, err er
 // This should return ErrDirNotFound if the directory isn't
 // found.
 func (f *Fs) List(dir string) (entries fs.DirEntries, err error) {
-	fs.Debugf(nil, "List(%v)", dir)
+	// fs.Debugf(nil, "List(%v)", dir)
 	err = f.dirCache.FindRoot(false)
 	if err != nil {
 		return nil, err
@@ -743,7 +744,7 @@ func (f *Fs) List(dir string) (entries fs.DirEntries, err error) {
 
 	for _, folder := range folderList.Folders {
 		folder.Name = restoreReservedChars(folder.Name)
-		fs.Debugf(nil, "Folder: %s (%s)", folder.Name, folder.FolderID)
+		// fs.Debugf(nil, "Folder: %s (%s)", folder.Name, folder.FolderID)
 		remote := path.Join(dir, folder.Name)
 		// cache the directory ID for later lookups
 		f.dirCache.Put(remote, folder.FolderID)
@@ -754,7 +755,7 @@ func (f *Fs) List(dir string) (entries fs.DirEntries, err error) {
 
 	for _, file := range folderList.Files {
 		file.Name = restoreReservedChars(file.Name)
-		fs.Debugf(nil, "File: %s (%s)", file.Name, file.FileID)
+		// fs.Debugf(nil, "File: %s (%s)", file.Name, file.FileID)
 		remote := path.Join(dir, file.Name)
 		o, err := f.newObjectWithInfo(remote, &file)
 		if err != nil {
@@ -810,7 +811,7 @@ func (o *Object) ModTime() time.Time {
 
 // SetModTime sets the modification time of the local fs object
 func (o *Object) SetModTime(modTime time.Time) error {
-	fs.Debugf(nil, "SetModTime(%v)", modTime.String())
+	// fs.Debugf(nil, "SetModTime(%v)", modTime.String())
 	opts := rest.Opts{
 		Method:     "PUT",
 		NoResponse: true,
@@ -829,7 +830,7 @@ func (o *Object) SetModTime(modTime time.Time) error {
 
 // Open an object for read
 func (o *Object) Open(options ...fs.OpenOption) (in io.ReadCloser, err error) {
-	fs.Debugf(nil, "Open(\"%v\")", o.remote)
+	// fs.Debugf(nil, "Open(\"%v\")", o.remote)
 	fs.FixRangeOption(options, o.size)
 	opts := rest.Opts{
 		Method:  "GET",
@@ -850,7 +851,7 @@ func (o *Object) Open(options ...fs.OpenOption) (in io.ReadCloser, err error) {
 
 // Remove an object
 func (o *Object) Remove() error {
-	fs.Debugf(nil, "Remove(\"%s\")", o.id)
+	// fs.Debugf(nil, "Remove(\"%s\")", o.id)
 	return o.fs.pacer.Call(func() (bool, error) {
 		opts := rest.Opts{
 			Method:     "DELETE",
@@ -873,14 +874,14 @@ func (o *Object) Storable() bool {
 func (o *Object) Update(in io.Reader, src fs.ObjectInfo, options ...fs.OpenOption) error {
 	size := src.Size()
 	modTime := src.ModTime()
-	fs.Debugf(nil, "Update(\"%s\", \"%s\")", o.id, o.remote)
+	// fs.Debugf(nil, "Update(\"%s\", \"%s\")", o.id, o.remote)
 
 	// Open file for upload
 	var resp *http.Response
 	openResponse := openUploadResponse{}
 	err := o.fs.pacer.Call(func() (bool, error) {
 		openUploadData := openUpload{SessionID: o.fs.session.SessionID, FileID: o.id, Size: size}
-		fs.Debugf(nil, "PreOpen: %#v", openUploadData)
+		// fs.Debugf(nil, "PreOpen: %#v", openUploadData)
 		opts := rest.Opts{
 			Method: "POST",
 			Path:   "/upload/open_file_upload.json",
@@ -892,7 +893,7 @@ func (o *Object) Update(in io.Reader, src fs.ObjectInfo, options ...fs.OpenOptio
 		return errors.Wrap(err, "failed to create file")
 	}
 	// resp.Body.Close()
-	fs.Debugf(nil, "PostOpen: %#v", openResponse)
+	// fs.Debugf(nil, "PostOpen: %#v", openResponse)
 
 	// 1 MB chunks size
 	chunkSize := int64(1024 * 1024 * 10)
@@ -906,7 +907,7 @@ func (o *Object) Update(in io.Reader, src fs.ObjectInfo, options ...fs.OpenOptio
 			currentChunkSize = remainingBytes
 		}
 		remainingBytes -= currentChunkSize
-		fs.Debugf(nil, "Chunk %d: size=%d, remain=%d", chunkCounter, currentChunkSize, remainingBytes)
+		fs.Debugf(o, "Uploading chunk %d, size=%d, remain=%d", chunkCounter, currentChunkSize, remainingBytes)
 
 		err = o.fs.pacer.Call(func() (bool, error) {
 			var formBody bytes.Buffer
@@ -992,7 +993,7 @@ func (o *Object) Update(in io.Reader, src fs.ObjectInfo, options ...fs.OpenOptio
 	closeResponse := closeUploadResponse{}
 	err = o.fs.pacer.Call(func() (bool, error) {
 		closeUploadData := closeUpload{SessionID: o.fs.session.SessionID, FileID: o.id, Size: size, TempLocation: openResponse.TempLocation}
-		fs.Debugf(nil, "PreClose: %#v", closeUploadData)
+		// fs.Debugf(nil, "PreClose: %#v", closeUploadData)
 		opts := rest.Opts{
 			Method: "POST",
 			Path:   "/upload/close_file_upload.json",
@@ -1003,7 +1004,7 @@ func (o *Object) Update(in io.Reader, src fs.ObjectInfo, options ...fs.OpenOptio
 	if err != nil {
 		return errors.Wrap(err, "failed to create file")
 	}
-	fs.Debugf(nil, "PostClose: %#v", closeResponse)
+	// fs.Debugf(nil, "PostClose: %#v", closeResponse)
 
 	o.id = closeResponse.FileID
 	o.size = closeResponse.Size
@@ -1017,7 +1018,7 @@ func (o *Object) Update(in io.Reader, src fs.ObjectInfo, options ...fs.OpenOptio
 	// Set permissions
 	err = o.fs.pacer.Call(func() (bool, error) {
 		update := permissions{SessionID: o.fs.session.SessionID, FileID: o.id, FileIsPublic: 0}
-		fs.Debugf(nil, "Permissions : %#v", update)
+		// fs.Debugf(nil, "Permissions : %#v", update)
 		opts := rest.Opts{
 			Method:     "POST",
 			NoResponse: true,
