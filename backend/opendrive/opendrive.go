@@ -2,16 +2,14 @@ package opendrive
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"path"
 	"strconv"
 	"strings"
 	"time"
-
-	"fmt"
 
 	"github.com/ncw/rclone/fs"
 	"github.com/ncw/rclone/fs/config/obscure"
@@ -71,18 +69,10 @@ type Object struct {
 	size    int64     // Size of the object
 }
 
-// parsePath parses an acd 'url'
+// parsePath parses an incoming 'url'
 func parsePath(path string) (root string) {
 	root = strings.Trim(path, "/")
 	return
-}
-
-// mimics url.PathEscape which only available from go 1.8
-func pathEscape(path string) string {
-	u := url.URL{
-		Path: path,
-	}
-	return u.EscapedPath()
 }
 
 // ------------------------------------------------------------
@@ -110,6 +100,12 @@ func (f *Fs) Features() *fs.Features {
 // Hashes returns the supported hash sets.
 func (f *Fs) Hashes() hash.Set {
 	return hash.Set(hash.MD5)
+}
+
+// DirCacheFlush resets the directory cache - used in testing as an
+// optional interface
+func (f *Fs) DirCacheFlush() {
+	f.dirCache.ResetRoot()
 }
 
 // NewFs contstructs an Fs from the path, bucket:path
@@ -315,7 +311,7 @@ func (f *Fs) Copy(src fs.Object, remote string) (fs.Object, error) {
 	}
 
 	// Create temporary object
-	dstObj, _, directoryID, err := f.createObject(remote, srcObj.modTime, srcObj.size)
+	dstObj, leaf, directoryID, err := f.createObject(remote, srcObj.modTime, srcObj.size)
 	if err != nil {
 		return nil, err
 	}
@@ -323,14 +319,15 @@ func (f *Fs) Copy(src fs.Object, remote string) (fs.Object, error) {
 
 	// Copy the object
 	var resp *http.Response
-	response := copyFileResponse{}
+	response := moveCopyFileResponse{}
 	err = f.pacer.Call(func() (bool, error) {
-		copyFileData := copyFile{
+		copyFileData := moveCopyFile{
 			SessionID:         f.session.SessionID,
 			SrcFileID:         srcObj.id,
 			DstFolderID:       directoryID,
 			Move:              "false",
 			OverwriteIfExists: "true",
+			NewFileName:       leaf,
 		}
 		opts := rest.Opts{
 			Method: "POST",
@@ -372,21 +369,22 @@ func (f *Fs) Move(src fs.Object, remote string) (fs.Object, error) {
 	}
 
 	// Create temporary object
-	dstObj, _, directoryID, err := f.createObject(remote, srcObj.modTime, srcObj.size)
+	dstObj, leaf, directoryID, err := f.createObject(remote, srcObj.modTime, srcObj.size)
 	if err != nil {
 		return nil, err
 	}
 
 	// Copy the object
 	var resp *http.Response
-	response := copyFileResponse{}
+	response := moveCopyFileResponse{}
 	err = f.pacer.Call(func() (bool, error) {
-		copyFileData := copyFile{
+		copyFileData := moveCopyFile{
 			SessionID:         f.session.SessionID,
 			SrcFileID:         srcObj.id,
 			DstFolderID:       directoryID,
 			Move:              "true",
 			OverwriteIfExists: "true",
+			NewFileName:       leaf,
 		}
 		opts := rest.Opts{
 			Method: "POST",
@@ -446,7 +444,7 @@ func (f *Fs) DirMove(src fs.Fs, srcRemote, dstRemote string) (err error) {
 	if dstRemote == "" {
 		findPath = f.root
 	}
-	dstDirectoryID, err := f.dirCache.FindDir(findPath, true)
+	leaf, dstDirectoryID, err := f.dirCache.FindPath(findPath, true)
 	if err != nil {
 		return err
 	}
@@ -464,13 +462,14 @@ func (f *Fs) DirMove(src fs.Fs, srcRemote, dstRemote string) (err error) {
 	}
 
 	var resp *http.Response
-	response := moveFolderResponse{}
+	response := moveCopyFolderResponse{}
 	err = f.pacer.Call(func() (bool, error) {
-		moveFolderData := moveFolder{
-			SessionID:   f.session.SessionID,
-			FolderID:    srcDirectoryID,
-			DstFolderID: dstDirectoryID,
-			Move:        "true",
+		moveFolderData := moveCopyFolder{
+			SessionID:     f.session.SessionID,
+			FolderID:      srcDirectoryID,
+			DstFolderID:   dstDirectoryID,
+			Move:          "true",
+			NewFolderName: leaf,
 		}
 		opts := rest.Opts{
 			Method: "POST",
@@ -831,23 +830,14 @@ func (o *Object) SetModTime(modTime time.Time) error {
 // Open an object for read
 func (o *Object) Open(options ...fs.OpenOption) (in io.ReadCloser, err error) {
 	fs.Debugf(nil, "Open(\"%v\")", o.remote)
-
-	opts := fs.OpenOptionHeaders(options)
-	offset := "0"
-
-	if "" != opts["Range"] {
-		parts := strings.Split(opts["Range"], "=")
-		parts = strings.Split(parts[1], "-")
-		offset = parts[0]
+	fs.FixRangeOption(options, o.size)
+	opts := rest.Opts{
+		Method:  "GET",
+		Path:    "/download/file.json/" + o.id + "?session_id=" + o.fs.session.SessionID,
+		Options: options,
 	}
-
-	// get the folderIDs
 	var resp *http.Response
 	err = o.fs.pacer.Call(func() (bool, error) {
-		opts := rest.Opts{
-			Method: "GET",
-			Path:   "/download/file.json/" + o.id + "?session_id=" + o.fs.session.SessionID + "&offset=" + offset,
-		}
 		resp, err = o.fs.srv.Call(&opts)
 		return o.fs.shouldRetry(resp, err)
 	})
@@ -1056,7 +1046,7 @@ func (o *Object) readMetaData() (err error) {
 	err = o.fs.pacer.Call(func() (bool, error) {
 		opts := rest.Opts{
 			Method: "GET",
-			Path:   "/folder/itembyname.json/" + o.fs.session.SessionID + "/" + directoryID + "?name=" + pathEscape(replaceReservedChars(leaf)),
+			Path:   "/folder/itembyname.json/" + o.fs.session.SessionID + "/" + directoryID + "?name=" + rest.URLPathEscape(replaceReservedChars(leaf)),
 		}
 		resp, err = o.fs.srv.CallJSON(&opts, nil, &folderList)
 		return o.fs.shouldRetry(resp, err)
@@ -1077,3 +1067,14 @@ func (o *Object) readMetaData() (err error) {
 
 	return nil
 }
+
+// Check the interfaces are satisfied
+var (
+	_ fs.Fs              = (*Fs)(nil)
+	_ fs.Purger          = (*Fs)(nil)
+	_ fs.Copier          = (*Fs)(nil)
+	_ fs.Mover           = (*Fs)(nil)
+	_ fs.DirMover        = (*Fs)(nil)
+	_ fs.DirCacheFlusher = (*Fs)(nil)
+	_ fs.Object          = (*Object)(nil)
+)
