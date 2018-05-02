@@ -9,7 +9,7 @@
     "fs",
     "fuseutil"
   ]
-  revision = "371fbbdaa8987b715bdd21d6adc4c9b20155f748"
+  revision = "65cc252bf6691cb3c7014bcb2c8dc29de91e3a7e"
 
 [[projects]]
   name = "cloud.google.com/go"
@@ -258,10 +258,10 @@
   revision = "816c9085562cd7ee03e7f8188a1cfd942858cded"
 
 [[projects]]
+  branch = "master"
   name = "github.com/pkg/sftp"
   packages = ["."]
-  revision = "43ec6c679d353f6e077d3965dc74f6d996eb4a09"
-  version = "1.5.1"
+  revision = "6d8540e9cf6a6bc6e49896da10ea33277e5993c0"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"
@@ -386,6 +386,7 @@
     "http2/hpack",
     "idna",
     "lex/httplex",
+    "publicsuffix",
     "webdav",
     "webdav/internal/xml",
     "websocket"
@@ -481,6 +482,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "09939c0d5f32998497c8304c84dd5c397c88816d235441d87f5306ae5db43b8a"
+  inputs-digest = "bf45893e8a840cec2c4d05f49244b062b778274cab8be26d1edca48c9a0f88dd"
   solver-name = "gps-cdcl"
   solver-version = 1
