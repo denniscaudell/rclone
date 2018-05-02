@@ -291,7 +291,7 @@
   branch = "master"
   name = "github.com/sevlyar/go-daemon"
   packages = ["."]
-  revision = "32749a731f76154d29bc6a547e6585f320eb235e"
+  revision = "45a2ba1b7c6710a044163fa109bf08d060bc3afa"
 
 [[projects]]
   branch = "master"
