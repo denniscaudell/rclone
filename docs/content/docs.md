@@ -1097,6 +1097,7 @@ it will log a high priority message if the retry was successful.
   * `5` - Temporary error (one that more retries might fix) (Retry errors)
   * `6` - Less serious errors (like 461 errors from dropbox) (NoRetry errors)
   * `7` - Fatal error (one that more retries won't fix, like account suspended) (Fatal errors)
+  * `8` - Transfer exceeded - limit set by --max-transfer reached
 
 Environment Variables
 ---------------------
