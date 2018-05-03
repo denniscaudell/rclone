@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/ncw/rclone/cmd"
@@ -29,6 +30,7 @@ var (
 	ExtraOptions       []string
 	ExtraFlags         []string
 	AttrTimeout        = 1 * time.Second // how long the kernel caches attribute for
+	VolumeName         string
 )
 
 // Check is folder is empty
@@ -209,6 +211,15 @@ will see all files and folders immediately in this mode.
 				}
 			}
 
+			// Work out the volume name, removing special
+			// characters from it if necessary
+			if VolumeName == "" {
+				VolumeName = fdst.Name() + ":" + fdst.Root()
+			}
+			VolumeName = strings.Replace(VolumeName, ":", " ", -1)
+			VolumeName = strings.Replace(VolumeName, "/", " ", -1)
+			VolumeName = strings.TrimSpace(VolumeName)
+
 			// Start background task if --background is specified
 			if Daemon {
 				daemonized := startBackgroundMode()
@@ -241,6 +252,7 @@ will see all files and folders immediately in this mode.
 	flags.StringArrayVarP(flagSet, &ExtraOptions, "option", "o", []string{}, "Option for libfuse/WinFsp. Repeat if required.")
 	flags.StringArrayVarP(flagSet, &ExtraFlags, "fuse-flag", "", []string{}, "Flags or arguments to be passed direct to libfuse/WinFsp. Repeat if required.")
 	flags.BoolVarP(flagSet, &Daemon, "daemon", "", Daemon, "Run mount as a daemon (background mode).")
+	flags.StringVarP(flagSet, &VolumeName, "volname", "", VolumeName, "Set the volume name (not supported by all OSes).")
 
 	// Add in the generic flags
 	vfsflags.AddFlags(flagSet)
